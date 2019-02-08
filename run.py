@@ -1,14 +1,28 @@
+import numpy as np
+
 from mcts.nodes import *
 from mcts.search import MonteCarloTreeSearch
 from game import GameState
 
+GAME_NUMBER = 100
+GRAPH_SIZE = 6
+SIMULATION_NUMBER = 20
+MAKER = 1
+BREAKER = -1
+
+edges = list()
+perfMatc = list()
+
+
 def createEdges():
-    for i in range(1, 6):
-        for j in range(i):
-            edges.append(str(i) + str(j))
+    edges.clear()
+    for x in range(1, GRAPH_SIZE):
+        for y in range(x):
+            edges.append(str(x) + str(y))
 
 
 def createPerfMatch():
+    perfMatc.clear()
     for i in range(len(edges)):
         for j in range(i + 1, len(edges)):
             for k in range(j + 1, len(edges)):
@@ -22,80 +36,71 @@ def createPerfMatch():
                     perfMatc.append(tmp)
 
 
-def hamle():
-    for i in range(1, 6):
-        for j in range(i):
-            if c_board[i][j] == 1 or c_board[i][j] == -1:
-                hamle = str(i) + str(j)
-                if hamle in edges:
-                    if c_board[i][j]==-1:
-                        plyr="Breaker"
+def move():
+    for x in range(1, GRAPH_SIZE):
+        for y in range(x):
+            if c_board[x][y] == MAKER or c_board[x][y] == BREAKER:
+                moving = str(x) + str(y)
+                if moving in edges:
+                    if c_board[x][y] == BREAKER:
+                        plyr = "Breaker"
                     else:
                         plyr = "Maker"
-                    #print("hamle:", hamle, "oyuncu:", plyr)
-                    edges.remove(hamle)
-                    if c_board[i][j] == -1:
+                    # print("moving:", moving, "player:", plyr)
+                    edges.remove(moving)
+                    if c_board[x][y] == BREAKER:
                         for k, v in enumerate(perfMatc):
-                            if hamle in v:
+                            if moving in v:
                                 perfMatc.remove(perfMatc[k])
 
-maker = 0
-breaker = 0
+
+makerWinCount = 0
+breakerWinCount = 0
 
 def judge(state):
     if state.is_game_over():
-        global maker
-        global breaker
-        if state.game_result == 1.0:
+        global makerWinCount
+        global breakerWinCount
+        if state.game_result == MAKER:
             print("MAKER WIN!")
-            maker += 1
-            print("breaker=", breaker)
-            print("maker=", maker)
-            print("-----------------------")
-        if state.game_result == -1.0:
+            makerWinCount += 1
+        if state.game_result == BREAKER:
             print("BREAKER WIN!")
-            breaker += 1
-            print("breaker=", breaker)
-            print("maker=", maker)
-            print("-----------------------")
-
+            breakerWinCount += 1
+        print("breakerWinCount = ", breakerWinCount)
+        print("makerWinCount = ", makerWinCount)
+        print("-----------------------")
         return 1
 
-#Oynayacagı oyun sayısı
-for i in range(100):
-    edges = []
-    perfMatc = []
 
-    def init():
-        createEdges()
-        createPerfMatch()
-
-        state = np.zeros((6, 6))
-        initial_board_state = GameState(state=state, next_to_move=1, pmArray=perfMatc)
-        root = MonteCarloTreeSearchNode(state=initial_board_state, parent=None)
-        mcts = MonteCarloTreeSearch(root)
-        best_node = mcts.best_action(200)
-        c_state = best_node.state
-        c_board = c_state.board
-        return c_state, c_board
+def play(state, player):
+    board_state = GameState(state=state, next_to_move=player, pmArray=perfMatc)
+    root = MonteCarloTreeSearchNode(state=board_state, parent=None)
+    mcts = MonteCarloTreeSearch(root)
+    best_node = mcts.best_action(SIMULATION_NUMBER)
+    c_state = best_node.state
+    c_board = c_state.board
+    return c_state, c_board
 
 
+def init():
+    createEdges()
+    createPerfMatch()
+    state = np.zeros((GRAPH_SIZE, GRAPH_SIZE))
+    c_state, c_board = play(state, MAKER)
+    return c_state, c_board
+
+
+for i in range(GAME_NUMBER):
     c_state, c_board = init()
-    hamle()
-    player = -1
-
+    move()
+    player = BREAKER
     while True:
-        board_state = GameState(state=c_board, next_to_move=player, pmArray=perfMatc)
-        root = MonteCarloTreeSearchNode(state=board_state, parent=None)
-        mcts = MonteCarloTreeSearch(root)
-        best_node = mcts.best_action(200)
-        c_state = best_node.state
-        c_board = c_state.board
-        hamle()
-        if player == 1:
-            player = -1
+        c_state, c_board = play(c_board, player)
+        move()
+        if player == MAKER:
+            player = BREAKER
         else:
-            player = 1
-
+            player = MAKER
         if judge(c_state) == 1:
             break
